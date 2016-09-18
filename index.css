@@ -80,6 +80,7 @@ input, textarea {
     border-style: solid;
     border-color: #f16221;
     border-radius: 5px;
+    margin-bottom: 3px;
 }
 /*
 .note-button.edit {

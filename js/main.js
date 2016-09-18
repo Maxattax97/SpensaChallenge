@@ -6,7 +6,7 @@ var Geotag = Backbone.Model.extend({
     defaults: {
         "title": "",
         "note": "",
-        "tags": [""],
+        "tags": [],
         "mark": null,
         "editing": false
     },
@@ -19,7 +19,7 @@ var Geotag = Backbone.Model.extend({
         this.set({
             title: params.title || "",
             note: params.note || "",
-            tags: params.tags || [""],
+            tags: params.tags || [],
             mark: params.mark,
             editing: params.editing || false
         });
@@ -64,13 +64,13 @@ var GeotagView = Backbone.View.extend({
     editingTemplate: _.template(
         '<input class="note-title edit-title" placeholder="SITE B36" ' +
             'value="<%= title %>">' +
-        '<button class="note-button delete">X</button>' +
-        '<button class="note-button save">Save</button>' +
+        '<button class="note-button delete" tabIndex="-1">X</button>' +
+        '<button class="note-button save" tabIndex="-1">Save</button>' +
         '<textarea class="note-data edit-data" placeholder="Approximately 13 ' +
             'weeds in this area. Spray advised. 90% of field infested by ' +
             'Soybean Aphids." rows="3"><%= note %></textarea>' +
         '<input class="note-tags edit-tags" placeholder="soybean, aphids' +
-            ', spray advised, weeds" value="<%=tags.join(", ") %>">' // hax
+            ', spray advised, weeds value="<%= tags.join(", ") %>">' // hax
     ),
     events: {
         "click": "select",
@@ -101,6 +101,7 @@ var GeotagView = Backbone.View.extend({
     },
     edit: function() {
         this.model.set("editing", true);
+
     },
     save: function(noAutofill) {
         var title = this.$(".edit-title").val();
@@ -108,12 +109,8 @@ var GeotagView = Backbone.View.extend({
         var note = this.$(".edit-data").val();
         note = note == "" ? "N/A" : note;
 
-        this.model.set("title", title);
-        this.model.set("note", note);
-
         // For some reason the string input is blank the first time?
         var strs = this.$(".edit-tags").val().split(",");
-        console.log(this.$(".edit-tags").val(), "\n", this.$(".edit-tags").attr("value"), "\n", strs);
         var tags = [];
         var i = 0;
         strs.forEach(function(str) {
@@ -123,8 +120,9 @@ var GeotagView = Backbone.View.extend({
                 i++;
             }
         });
-        console.log("strs: ", strs);
         this.model.set("tags", tags);
+        this.model.set("title", title);
+        this.model.set("note", note);
 
         this.model.set("editing", false);
     },
