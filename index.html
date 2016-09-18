@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Spensa Challenge</title>
+    <!-- Written by Max O'Cull -->
+    <meta name="viewport" content="initial-scale=1.0">
+    <meta charset="utf-8">
+    <script src="js/underscore-1.8.3.js"></script>
+    <script src="js/jquery-3.1.0.js"></script>
+    <script src="js/backbone-1.3.3.js"></script>
+    <link href="index.css" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="map"></div>
+    <div id="notes">
+        <!--
+            <div id="geotagTemplate" class="note hidden">
+                <div class="note-title"><%= title %></div>
+                <button class="note-button delete">X</button>
+                <button class="note-button edit">Edit</button>
+                <p class="note-data"><%= data %></p>
+            </div>
+        -->
+    </div>
+    <script src="js/main.js"></script>
+    <!-- Replace with the correct key! -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBXZvPZmIm9S613wK6jmg0x0YuWUUCnHXM&callback=init"
+    async defer></script>
+  </body>
+</html>
