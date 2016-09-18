@@ -6,35 +6,38 @@ var Geotag = Backbone.Model.extend({
     defaults: {
         "title": "untitled",
         "note": "(no note)",
-        "tags": {},
-        "mark": null
+        "tags": ["#tag1", "tag2", "long tag"],
+        "mark": null,
+        "editing": false
     },
     initialize: function(params) {
         if (params == undefined || params.mark == undefined) {
             console.error("A marker is required to initialize a Geotag.", params);
-            return null;
+            return;
         }
 
         this.set({
             title: params.title || "untitled",
             note: params.note || "(no note)",
-            tags: params.tags || {},
-            mark: params.mark
+            tags: params.tags || ["#tag1", "tag2", "long tag"],
+            mark: params.mark,
+            editing: params.editing || false
         });
-
-        var that = this; // 'this' will be passed to window otherwise.
-        setTimeout(function() {
-            that.select();
-        }, 700);
     },
-    select: function(wait) {
-        if (selection != undefined) {
-            selection.get("mark").setAnimation(null);
+    select: function(noZoomOrPan) {
+        if (!noZoomOrPan) {
+            map.panTo(this.get("mark").getPosition());
+            if (map.getZoom() < 15) {
+                map.setZoom(15);
+            }
         }
 
-        selection = this;
-
         this.get("mark").setAnimation(google.maps.Animation.BOUNCE);
+    },
+    delete: function() {
+        this.get("mark").setMap(null);
+        atlas.remove(this);
+        this.destroy();
     }
 });
 
@@ -49,39 +52,94 @@ var GeotagView = Backbone.View.extend({
     className: "note",
     //template: _.template($("#geotagTemplate").html()),
     template: _.template(
-        //'<div id="geotagTemplate" class="note">' +
-        '    <div class="note-title"><%= title %></div>' +
-        '    <button class="note-button delete">X</button>' +
-        '    <button class="note-button edit">Edit</button>' +
-        '    <p class="note-data"><%= note %></p>'),// +
-        //'</div>'),
+        '<div class="note-title"><%= title %></div>' +
+        '<button class="note-button delete">X</button>' +
+        '<button class="note-button edit">Edit</button>' +
+        '<p class="note-data"><%= note %></p>'
+    ),
+    editingTemplate: _.template(
+        '<input class="note-title edit-title" value="<%= title %>">' +
+        '<button class="note-button delete">X</button>' +
+        '<button class="note-button save">Save</button>' +
+        '<textarea class="note-data edit-data" rows="3"><%= note %></textarea>' +
+        '<input class="note-tags edit-tags" value="<% tags.join(\", \"); %>">' // hax
+    ),
     events: {
-        "click .note": "select",
+        "click": "select",
         "click .note-button.edit": "edit",
-        "click .note-button.delete": "delete"
+        "dblclick": "edit",
+        "click .note-button.delete": "delete",
+        "click .note-button.save": "save"
     },
     initialize: function() {
         this.listenTo(this.model, "change", this.render);
+
+        // Add a listener to focus on the markers when clicked on.
+        var that = this;
+        that.model.get("mark").addListener("click", function() {
+            that.select();
+        });
+
+        console.log(this.model.get("tags"));
+
+        this.model.set("editing", true); // Edit new geotags for information.
+        this.select(undefined, true);
+        //this.model.bind('add', this.selectNew, this)
     },
     render: function() {
-        this.$el.html(this.template(this.model.toJSON()));
-        //this.$el.removeClass("hidden");
-        console.log(this.$el);
+        if (this.model.get("editing")) {
+            this.$el.html(this.editingTemplate(this.model.toJSON()));
+        } else {
+            this.$el.html(this.template(this.model.toJSON()));
+        }
         return this;
     },
     edit: function() {
         console.log("EDIT");
+        this.model.set("editing", true);
+    },
+    save: function() {
+        console.log("SAVE");
+        this.model.set("title", this.$(".edit-title").val());
+        this.model.set("note", this.$(".edit-data").val());
+        var tags = this.$(".edit-tags").val().split(",");
+        for (var i = 0; i < tags.length; i++) {
+            tags[i] = tags[i].trim();
+        }
+        this.model.set("tags", tags);
+
+        this.model.set("editing", false);
     },
     delete: function() {
-        console.log("DELETE");
+        this.model.delete();
+        this.remove();
+    },
+    select: function(view, noZoomOrPan) {
+        // Sometimes a click event will be passed. Ignore it by detecting no
+        // model. If no object is passed, assume this.
+        if (view == undefined || view.model == undefined) {
+            view = this;
+        }
+
+        if (selection == view) {
+            return; // No change.
+        } else if (selection != undefined) {
+            if (selection.model.get("editing")) {
+                selection.save(); // Will close editing after saving.
+            }
+            selection.$el.removeClass("highlight");
+            selection.model.get("mark").setAnimation(null);
+        }
+
+        selection = view;
+
+        view.model.select(noZoomOrPan);
+        view.$el.addClass("highlight");
     }
 });
 
 var AtlasView = Backbone.View.extend({
     el: "#notes",
-    events: {
-        "click #map": "addGeotag"
-    },
     initialize: function() {
         this.$list = $("#notes");
 
@@ -91,9 +149,6 @@ var AtlasView = Backbone.View.extend({
         var geotagView = new GeotagView({model: tag});
         this.$list.append(geotagView.render().el);
         return this;
-    },
-    addGeotag: function(event) {
-        console.log(event);
     }
 });
 

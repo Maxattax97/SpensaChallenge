@@ -31,15 +31,32 @@ p {
     border-bottom: 3px #f16221 solid;
     background-color: rgba(241, 98, 33, 0.025);/*rgba(241, 98, 33, 0.1);*/
 }
+.note:hover {
+    cursor: pointer;
+}
+.note.highlight {
+    background-color: rgba(241, 98, 33, 0.25);
+}
 .note-title {
     font-weight: bold;
-    text-transform: capitalize;
+    text-transform: uppercase;
     line-height: 20px;
     font-size: 14px;
     float: left;
 }
 .note-data {
     clear: both;
+    display: block;
+}
+.note-tag {
+    float: left;
+    line-height: 14px;
+    color: white;
+    background-color: #f16221;
+    border-style: solid;
+    border-color: #f16221;
+    border-radius: 5px;
+    margin-right: 3px;
 }
 .note-button {
     float: right;
@@ -51,9 +68,24 @@ p {
     border-radius: 5px;
     margin-left: 3px;
 }
+
+.edit-data, .edit-tags {
+    width: 95%;
+    font-size: 11px;
+}
+input, textarea {
+    font-family: inherit;
+    padding: 2px;
+    border-width: 2px;
+    border-style: solid;
+    border-color: #f16221;
+    border-radius: 5px;
+}
+/*
 .note-button.edit {
-    /* For Backbone.js */
 }
 .note-button.delete {
-    /* For Backbone.js */
 }
+.note-button.save {
+}
+*/
