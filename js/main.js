@@ -4,9 +4,9 @@
 
 var Geotag = Backbone.Model.extend({
     defaults: {
-        "title": "untitled",
-        "note": "(no note)",
-        "tags": ["#tag1", "tag2", "long tag"],
+        "title": "",
+        "note": "",
+        "tags": [""],
         "mark": null,
         "editing": false
     },
@@ -17,9 +17,9 @@ var Geotag = Backbone.Model.extend({
         }
 
         this.set({
-            title: params.title || "untitled",
-            note: params.note || "(no note)",
-            tags: params.tags || ["#tag1", "tag2", "long tag"],
+            title: params.title || "",
+            note: params.note || "",
+            tags: params.tags || [""],
             mark: params.mark,
             editing: params.editing || false
         });
@@ -50,19 +50,27 @@ var Atlas = Backbone.Collection.extend({
 var GeotagView = Backbone.View.extend({
     tagName: "div",
     className: "note",
-    //template: _.template($("#geotagTemplate").html()),
     template: _.template(
         '<div class="note-title"><%= title %></div>' +
         '<button class="note-button delete">X</button>' +
         '<button class="note-button edit">Edit</button>' +
-        '<p class="note-data"><%= note %></p>'
+        '<p class="note-data"><%= note %></p>' +
+        '<% if (tags.length > 0) { %>' + // moar hax
+        '   <% for(var tag in tags) { %>' +
+        '       <div class="note-tag"><%= tags[tag] %></div>' +
+        '   <% } %>' +
+        '<% } %>'
     ),
     editingTemplate: _.template(
-        '<input class="note-title edit-title" value="<%= title %>">' +
+        '<input class="note-title edit-title" placeholder="SITE B36" ' +
+            'value="<%= title %>">' +
         '<button class="note-button delete">X</button>' +
         '<button class="note-button save">Save</button>' +
-        '<textarea class="note-data edit-data" rows="3"><%= note %></textarea>' +
-        '<input class="note-tags edit-tags" value="<% tags.join(\", \"); %>">' // hax
+        '<textarea class="note-data edit-data" placeholder="Approximately 13 ' +
+            'weeds in this area. Spray advised. 90% of field infested by ' +
+            'Soybean Aphids." rows="3"><%= note %></textarea>' +
+        '<input class="note-tags edit-tags" placeholder="soybean, aphids' +
+            ', spray advised, weeds" value="<%=tags.join(", ") %>">' // hax
     ),
     events: {
         "click": "select",
@@ -80,11 +88,8 @@ var GeotagView = Backbone.View.extend({
             that.select();
         });
 
-        console.log(this.model.get("tags"));
-
-        this.model.set("editing", true); // Edit new geotags for information.
+        this.edit(); // Edit new geotags for information.
         this.select(undefined, true);
-        //this.model.bind('add', this.selectNew, this)
     },
     render: function() {
         if (this.model.get("editing")) {
@@ -95,17 +100,30 @@ var GeotagView = Backbone.View.extend({
         return this;
     },
     edit: function() {
-        console.log("EDIT");
         this.model.set("editing", true);
     },
-    save: function() {
-        console.log("SAVE");
-        this.model.set("title", this.$(".edit-title").val());
-        this.model.set("note", this.$(".edit-data").val());
-        var tags = this.$(".edit-tags").val().split(",");
-        for (var i = 0; i < tags.length; i++) {
-            tags[i] = tags[i].trim();
-        }
+    save: function(noAutofill) {
+        var title = this.$(".edit-title").val();
+        title = title == ""? "UNTITLED" : title;
+        var note = this.$(".edit-data").val();
+        note = note == "" ? "N/A" : note;
+
+        this.model.set("title", title);
+        this.model.set("note", note);
+
+        // For some reason the string input is blank the first time?
+        var strs = this.$(".edit-tags").val().split(",");
+        console.log(this.$(".edit-tags").val(), "\n", this.$(".edit-tags").attr("value"), "\n", strs);
+        var tags = [];
+        var i = 0;
+        strs.forEach(function(str) {
+            var trm = str.trim();
+            if (trm != "") {
+                tags[i] = trm;
+                i++;
+            }
+        });
+        console.log("strs: ", strs);
         this.model.set("tags", tags);
 
         this.model.set("editing", false);
@@ -162,22 +180,10 @@ var atlas = new Atlas();
 var atlasView = new AtlasView();
 
 /**
- * Callback that is fired after Google Maps API has loaded.
+ * Initializes a Google Map focused on Purdue Research Park at zoom level 17.
+ * Fired after Google Maps API has loaded.
  */
 function init() {
-    initMap();
-    //var notes = document.getElementsByClass("");
-    $(document).dblclick(function(event) {
-        console.log("Double click: ", $(event.target));
-    });
-
-
-}
-
-/**
- * Initializes a Google Map focused on Purdue Research Park at zoom level 17.
- */
-function initMap() {
     var purdueResearchPark = {lat: 40.4655383, lng: -86.9294276};
     map = new google.maps.Map(document.getElementById('map'), {
         center: purdueResearchPark,
@@ -189,23 +195,4 @@ function initMap() {
         //params.mark = new google.maps.Marker({position: event.latLng, map: map});
         atlas.add(new Geotag({mark: new google.maps.Marker({position: event.latLng, map: map, animation: google.maps.Animation.DROP})}));
     });
-}
-
-/**
- * Creates a note with specified title, data, and tags.
- * @param  {string} title   Title for the note.
- * @param  {string} data    Content that will reside within the note.
- * @param  {string[]} tags  String array of tags for the note.
- * @param {Marker} mark  Marker object that this note is tied to.
- */
-function makeNote(title, data, tags, mark) {
-    var newNote = $("#notes").add("div").addClass(".note");
-    newNote.add("div").addClass(".note-title").append(title);
-    newNote.add("button").addClass(".note-button").append("X");
-    newNote.add("button").addClass(".note-button").append("Edit");
-    newNote.add("p").append(data);
-}
-
-function selectNote(mark) {
-    mark.setAnimation(google.maps.Animation.BOUNCE);
 }
