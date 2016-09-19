@@ -2,6 +2,11 @@
 // CLASSES //
 /////////////
 
+/**
+ * Geotags contain a title, note, tags, and a Google Maps marker. They alse have
+ * a value for editing the Geotag data.
+ * @type {Backbone.Model}
+ */
 var Geotag = Backbone.Model.extend({
     defaults: {
         "title": "",
@@ -24,16 +29,32 @@ var Geotag = Backbone.Model.extend({
             editing: params.editing || false
         });
     },
-    select: function(noZoomOrPan) {
-        if (!noZoomOrPan) {
+    // For zooming, panning, bouncing effect to indicate current Geotag.
+    select: function(letDrop) {
+        // New markers will drop into place and be panned to.
+        if (letDrop) {
+            var that = this
+            setTimeout(function() {
+                // In case you're clicking too fast.
+                if (selection && selection.model == that) {
+                    that.get("mark").setAnimation(google.maps.Animation.BOUNCE);
+
+                    map.panTo(that.get("mark").getPosition());
+                    if (map.getZoom() < 15) {
+                        map.setZoom(15);
+                    }
+                }
+            }, 700);
+        } else {
+            this.get("mark").setAnimation(google.maps.Animation.BOUNCE);
+
             map.panTo(this.get("mark").getPosition());
             if (map.getZoom() < 15) {
                 map.setZoom(15);
             }
         }
-
-        this.get("mark").setAnimation(google.maps.Animation.BOUNCE);
     },
+    // Remove this Geotag from existence.
     delete: function() {
         this.get("mark").setMap(null);
         atlas.remove(this);
@@ -41,15 +62,26 @@ var Geotag = Backbone.Model.extend({
     }
 });
 
+/**
+ * Atlases are a collection of Geotags.
+ * @type {Backbone.Collection}
+ */
 var Atlas = Backbone.Collection.extend({
     model: Geotag,
-    /*localStorage: new Backbone.LocalStorage("max-ocull-geotag-atlas"),*/
+    // Maybe later?
+    //localStorage: new Backbone.LocalStorage("max-ocull-geotag-atlas"),
     comparator: "title"
 });
 
+/**
+ * GeotagViews represent the Geotag model in HTML5. They allow the user to
+ * view and edit the Geotags within atlases.
+ * @type {Backbone.View}
+ */
 var GeotagView = Backbone.View.extend({
     tagName: "div",
     className: "note",
+    // For normal view of a Geotag.
     template: _.template(
         '<div class="note-title"><%= title %></div>' +
         '<button class="note-button delete">X</button>' +
@@ -61,6 +93,7 @@ var GeotagView = Backbone.View.extend({
         '   <% } %>' +
         '<% } %>'
     ),
+    // For when editing a Geotag.
     editingTemplate: _.template(
         '<input class="note-title edit-title" placeholder="SITE B36" ' +
             'value="<%= title %>">' +
@@ -70,25 +103,26 @@ var GeotagView = Backbone.View.extend({
             'weeds in this area. Spray advised. 90% of field infested by ' +
             'Soybean Aphids." rows="3"><%= note %></textarea>' +
         '<input class="note-tags edit-tags" placeholder="soybean, aphids' +
-            ', spray advised, weeds value="<%= tags.join(", ") %>">' // hax
+            ', spray advised, weeds" value="<%= tags.join(", ") %>">' // hax
     ),
     events: {
         "click": "select",
         "click .note-button.edit": "edit",
-        "dblclick": "edit",
+        "dblclick": "edit", // yay
         "click .note-button.delete": "delete",
         "click .note-button.save": "save"
     },
     initialize: function() {
         this.listenTo(this.model, "change", this.render);
 
-        // Add a listener to focus on the markers when clicked on.
+        // Add a listener to focus on the markers when clicked on from the map.
         var that = this;
         that.model.get("mark").addListener("click", function() {
             that.select();
         });
 
-        this.edit(); // Edit new geotags for information.
+        // Edit new geotags for information.
+        this.edit();
         this.select(undefined, true);
     },
     render: function() {
@@ -101,15 +135,14 @@ var GeotagView = Backbone.View.extend({
     },
     edit: function() {
         this.model.set("editing", true);
-
     },
+    // Retrieve data from the Geotag edit view, then save to the model.
     save: function(noAutofill) {
         var title = this.$(".edit-title").val();
         title = title == ""? "UNTITLED" : title;
         var note = this.$(".edit-data").val();
         note = note == "" ? "N/A" : note;
 
-        // For some reason the string input is blank the first time?
         var strs = this.$(".edit-tags").val().split(",");
         var tags = [];
         var i = 0;
@@ -120,6 +153,9 @@ var GeotagView = Backbone.View.extend({
                 i++;
             }
         });
+
+        // These *MUST* be set AFTER the input is retrieved. Otherwise the form
+        // will reset and clear all input.
         this.model.set("tags", tags);
         this.model.set("title", title);
         this.model.set("note", note);
@@ -130,7 +166,8 @@ var GeotagView = Backbone.View.extend({
         this.model.delete();
         this.remove();
     },
-    select: function(view, noZoomOrPan) {
+    // Highlight GeotagView, and zoom, pan, bounce the marker.
+    select: function(view, letDrop) {
         // Sometimes a click event will be passed. Ignore it by detecting no
         // model. If no object is passed, assume this.
         if (view == undefined || view.model == undefined) {
@@ -149,11 +186,15 @@ var GeotagView = Backbone.View.extend({
 
         selection = view;
 
-        view.model.select(noZoomOrPan);
+        view.model.select(letDrop);
         view.$el.addClass("highlight");
     }
 });
 
+/**
+ * The AtlasView is a view of a collection of Geotags.
+ * @type {Backbone.View}
+ */
 var AtlasView = Backbone.View.extend({
     el: "#notes",
     initialize: function() {
@@ -188,9 +229,9 @@ function init() {
         zoom: 17
     });
 
+    // When clicking the map, add a marker and kick off the creation of a
+    // Geotag. Add the Geotag to the Atlas.
     google.maps.event.addListener(map, 'click', function(event) {
-        //var params = {};
-        //params.mark = new google.maps.Marker({position: event.latLng, map: map});
         atlas.add(new Geotag({mark: new google.maps.Marker({position: event.latLng, map: map, animation: google.maps.Animation.DROP})}));
     });
 }

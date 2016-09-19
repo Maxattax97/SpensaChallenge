@@ -29,7 +29,7 @@ p {
     padding: 1em;
     text-align: justify;
     border-bottom: 3px #f16221 solid;
-    background-color: rgba(241, 98, 33, 0.05);/*rgba(241, 98, 33, 0.1);*/
+    background-color: rgba(241, 98, 33, 0.05);
 }
 .note:hover {
     cursor: pointer;
@@ -82,11 +82,3 @@ input, textarea {
     border-radius: 5px;
     margin-bottom: 3px;
 }
-/*
-.note-button.edit {
-}
-.note-button.delete {
-}
-.note-button.save {
-}
-*/
